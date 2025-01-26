@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2\Register;
 use App\Http\Controllers\Api\Controller;
 use App\Models\User as UserModel;
 use App\Models\UserChallenge as UserChallengeModel;
+use App\Models\UserCredential as UserCredentialModel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -99,11 +100,13 @@ class Verify extends Controller
             ]);
         }
 
+        UserCredentialModel::fromPublicKeyCredentialSource($publicKeyCredentialSource, $user);
+
         $this->logger->info("Credentials valid", [
-            "class" => get_class($publicKeyCredentialSource),
             "attestation_type" => $publicKeyCredentialSource->attestationType,
-            "credential_id" => bin2hex($publicKeyCredentialSource->publicKeyCredentialId),
-            "credential_public_key" => bin2hex($publicKeyCredentialSource->credentialPublicKey),
+            "credential_id" => $publicKeyCredentialSource->publicKeyCredentialId,
+            "credential_id_encoded" => base64_encode($publicKeyCredentialSource->publicKeyCredentialId),
+            "credential_public_key" => $publicKeyCredentialSource->credentialPublicKey,
             "transports" => $publicKeyCredentialSource->transports,
             "type" => $publicKeyCredentialSource->type,
         ]);

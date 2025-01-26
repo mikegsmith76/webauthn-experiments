@@ -13,9 +13,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('user_credentials', function (Blueprint $table) {
-            $table->string("credential_id")->primary();
-            $table->foreignIdFor(User::class);
+            $table->charset('utf8mb4');
+            $table->collation('utf8mb4_unicode_ci');
+            $table->id();
+            $table->text("credential_id");
+            $table->string("credential_type");
+            $table->json("transports");
+            $table->string("attestation_type");
+            $table->json("trust_path");
+            $table->string("aaguid");
             $table->text("public_key");
+            $table->string("user_handle");
+            $table->integer("counter");
+            $table->foreignIdFor(User::class);
             $table->timestamps();
         });
     }

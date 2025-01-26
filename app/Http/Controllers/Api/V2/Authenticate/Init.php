@@ -1,23 +1,20 @@
 <?php
 
-namespace App\Http\Controllers\Api\V2\Register;
+namespace App\Http\Controllers\Api\V2\Authenticate;
 
-use App\Http\Controllers\Api\Controller;
 use App\Models\User as UserModel;
 use App\Models\UserChallenge as UserChallengeModel;
+use App\Models\UserCredential as UserCredentialModel;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Serializer\Encoder\JsonEncode;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
-use Webauthn\PublicKeyCredentialCreationOptions;
-use Webauthn\PublicKeyCredentialRpEntity;
-use Webauthn\PublicKeyCredentialUserEntity;
+use Webauthn\PublicKeyCredentialDescriptor;
+use Webauthn\PublicKeyCredentialRequestOptions;
 
 class Init
 {
     public function __construct(
-        protected PublicKeyCredentialRpEntity $relayingParty,
         protected SerializerInterface $serializer,
         protected \Illuminate\Log\LogManager $logger,
     ) {
@@ -25,24 +22,22 @@ class Init
 
     public function __invoke()
     {
-        $emailAddress = "mail@mikegsmith.co.uk";
+        $user = UserModel::where("email", "mail@mikegsmith.co.uk")->first();
 
-        $user = UserModel::where("email", $emailAddress)->first();
-
-        if (null === $user) {
-            abort(404);
-        }
+        $allowedCredentials = UserCredentialModel::where("user_id", $user->id)->get()->map(function(UserCredentialModel $credential) {
+            return $credential->toPublicKeyCredentialSource()->getPublicKeyCredentialDescriptor();
+        })->all();
 
         $challenge = random_bytes(32);
 
-        $creationOptions = PublicKeyCredentialCreationOptions::create(
-            $this->relayingParty,
-            $user->toPublicKeyCredentialUserEntity(),
-            $challenge,
-        );
+        $options =
+            PublicKeyCredentialRequestOptions::create(
+                $challenge,
+                allowCredentials: $allowedCredentials
+            );
 
         $json = $this->serializer->serialize(
-            $creationOptions,
+            $options,
             'json',
             [
                 AbstractObjectNormalizer::SKIP_NULL_VALUES => true,

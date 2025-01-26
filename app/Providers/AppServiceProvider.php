@@ -5,6 +5,9 @@ namespace App\Providers;
 use App\Http\Controllers\Api\V2\Register\Init as V2RegisterInitController;
 use App\Http\Controllers\Api\V2\Register\Verify as V2RegisterVerifyController;
 
+use App\Http\Controllers\Api\V2\Authenticate\Init as V2AuthenticateInitController;
+use App\Http\Controllers\Api\V2\Authenticate\Verify as V2AuthenticateVerifyController;
+
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use lbuchs\WebAuthn\WebAuthn;
@@ -12,6 +15,7 @@ use lbuchs\WebAuthn\WebAuthn;
 use Symfony\Component\Serializer\SerializerInterface;
 
 use Webauthn\AuthenticatorAttestationResponseValidator;
+use Webauthn\AuthenticatorAssertionResponseValidator;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\CeremonyStep\CeremonyStepManagerFactory;
 use Webauthn\PublicKeyCredentialRpEntity;
@@ -47,6 +51,15 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->bind(AuthenticatorAssertionResponseValidator::class, function(Application $app) {
+            $factory = $app->make(CeremonyStepManagerFactory::class);
+            $factory->setSecuredRelyingPartyId(["localhost"]);
+            
+            return new AuthenticatorAssertionResponseValidator(
+                $factory->requestCeremony(),
+            );
+        });
+
         $this->app
             ->when(V2RegisterInitController::class)
             ->needs(SerializerInterface::class)
@@ -55,8 +68,24 @@ class AppServiceProvider extends ServiceProvider
                 return (new WebauthnSerializerFactory($manager))->create();
             });
 
-            $this->app
+        $this->app
             ->when(V2RegisterVerifyController::class)
+            ->needs(SerializerInterface::class)
+            ->give(function() use ($app) {
+                $manager = $app->make(AttestationStatementSupportManager::class);
+                return (new WebauthnSerializerFactory($manager))->create();
+            });
+
+        $this->app
+            ->when(V2AuthenticateInitController::class)
+            ->needs(SerializerInterface::class)
+            ->give(function() use ($app) {
+                $manager = $app->make(AttestationStatementSupportManager::class);
+                return (new WebauthnSerializerFactory($manager))->create();
+            });
+
+            $this->app
+            ->when(V2AuthenticateVerifyController::class)
             ->needs(SerializerInterface::class)
             ->give(function() use ($app) {
                 $manager = $app->make(AttestationStatementSupportManager::class);
