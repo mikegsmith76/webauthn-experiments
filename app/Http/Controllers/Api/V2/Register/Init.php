@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2\Register;
 use App\Http\Controllers\Api\Controller;
 use App\Models\User as UserModel;
 use App\Models\UserChallenge as UserChallengeModel;
+use App\Models\UserCredential as UserCredentialModel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -35,10 +36,15 @@ class Init
 
         $challenge = random_bytes(32);
 
+        $excludedPublicKeyDescriptors = UserCredentialModel::where("user_id", $user->id)->get()->map(function(UserCredentialModel $credential) {
+            return $credential->toPublicKeyCredentialSource()->getPublicKeyCredentialDescriptor();
+        })->all();
+
         $creationOptions = PublicKeyCredentialCreationOptions::create(
             $this->relayingParty,
             $user->toPublicKeyCredentialUserEntity(),
             $challenge,
+            excludeCredentials: $excludedPublicKeyDescriptors,
         );
 
         $json = $this->serializer->serialize(
